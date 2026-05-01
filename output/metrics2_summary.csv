@@ -1,0 +1,11 @@
+metric,value
+total_crossings.north,7.0
+total_crossings.south,15.0
+total_crossings.east,11.0
+total_crossings.west,15.0
+flow_rate_veh_min.north,15.44
+flow_rate_veh_min.south,33.09
+flow_rate_veh_min.east,24.26
+flow_rate_veh_min.west,33.09
+lane_utilization.west_arm,0.5
+lane_utilization.north_arm,0.5
