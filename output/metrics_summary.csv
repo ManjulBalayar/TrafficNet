@@ -11,3 +11,4 @@ lane_utilization.west_arm,0.22
 lane_utilization.east_arm,0.244
 lane_utilization.south_arm,0.317
 lane_utilization.north_arm,0.22
+avg_fps,13.5
