@@ -87,19 +87,21 @@ def run(source, output_video=None, output_metrics=None, show=False, delay=0):
     rate      = flow_rate(crossings, num_frames=len(annotated_frames))
     util      = lane_utilization(assign_lanes(store, LANE_ROIS))
 
-    summary = {
-        "total_crossings":   {n: d["count"] for n, d in crossings.items()},
-        "flow_rate_veh_min": rate,
-        "lane_utilization":  util,
-        "avg_fps":           round(avg_fps, 1) if frame_times else 0.0,
-    }
-
     # Throughput stats
     if frame_times:
         avg_fps  = len(frame_times) / sum(frame_times)
         med_fps  = 1.0 / sorted(frame_times)[len(frame_times) // 2]
         p5_fps   = 1.0 / sorted(frame_times)[int(len(frame_times) * 0.95)]  # 5th-percentile fps
         total_s  = sum(frame_times)
+    else:
+        avg_fps = med_fps = p5_fps = total_s = 0.0
+
+    summary = {
+        "total_crossings":   {n: d["count"] for n, d in crossings.items()},
+        "flow_rate_veh_min": rate,
+        "lane_utilization":  util,
+        "avg_fps":           round(avg_fps, 1),
+    }
 
     print("\n" + "=" * 52)
     print("  TRAFFIC ANALYTICS SUMMARY")
