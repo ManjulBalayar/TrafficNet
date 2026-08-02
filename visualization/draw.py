@@ -86,32 +86,47 @@ def draw_counting_lines(frame, counting_lines, crossing_results=None):
     return frame
 
 
-def draw_lane_rois(frame, lane_rois, utilization=None):
+def draw_lane_rois(frame, lane_rois, utilization=None, occupancy=None):
     """
-    Draw lane ROI polygons with optional utilization percentages.
+    Draw lane ROI polygons with live occupancy count and cumulative utilization.
+
+    Shows two numbers per zone:
+      - Top line: "N now"  — vehicles currently inside the zone this frame
+      - Bottom line: "X%"  — cumulative utilization across the whole video so far
 
     Parameters
     ----------
     frame       : BGR numpy array (modified in-place)
     lane_rois   : list of {"name": str, "polygon": [(x,y), ...]}
     utilization : output of lane_utilization(), or None
+    occupancy   : output of current_zone_occupancy(), or None
     """
     overlay = frame.copy()
     colors = [(255, 100, 100), (100, 255, 100), (100, 100, 255),
               (255, 255, 100), (100, 255, 255)]
 
     for idx, roi in enumerate(lane_rois):
-        pts = np.array(roi["polygon"], dtype=np.int32)
+        pts   = np.array(roi["polygon"], dtype=np.int32)
         color = colors[idx % len(colors)]
         cv2.fillPoly(overlay, [pts], color)
         cv2.polylines(frame, [pts], isClosed=True, color=color, thickness=2)
 
         cx = int(np.mean(pts[:, 0]))
         cy = int(np.mean(pts[:, 1]))
-        pct = utilization.get(roi["name"], 0.0) * 100 if utilization else 0.0
-        label = f"{roi['name']}: {pct:.0f}%"
-        cv2.putText(frame, label, (cx - 40, cy),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+
+        name = roi["name"]
+        now  = occupancy.get(name, 0) if occupancy else 0
+        pct  = utilization.get(name, 0.0) * 100 if utilization else 0.0
+
+        # Zone name
+        cv2.putText(frame, name, (cx - 50, cy - 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+        # Live count
+        cv2.putText(frame, f"{now} now", (cx - 30, cy + 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2, cv2.LINE_AA)
+        # Cumulative utilization
+        cv2.putText(frame, f"{pct:.0f}% total", (cx - 38, cy + 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
 
     cv2.addWeighted(overlay, 0.15, frame, 0.85, 0, frame)
     return frame
@@ -136,6 +151,6 @@ def draw_congestion(frame, congestion_status):
     cv2.rectangle(frame, (8, 8), (260, 70), bg_color, -1)
     cv2.putText(frame, label,
                 (14, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
-    cv2.putText(frame, f"speed: {avg_speed:.1f} px/fr  density: {density:.5f}",
+    cv2.putText(frame, f"speed: {avg_speed:.1f} px/fr  density: {density:.2e}",
                 (14, 58), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 220), 1, cv2.LINE_AA)
     return frame

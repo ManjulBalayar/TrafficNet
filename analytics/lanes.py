@@ -1,8 +1,12 @@
 """
 Lane utilization via region-of-interest (ROI) polygon assignment.
 
-Each lane is a convex polygon. A track is assigned to the lane whose ROI
-contains the majority of its trajectory positions.
+Each lane is a convex polygon.  Utilization is measured by *zone presence*:
+a vehicle is counted toward a zone if its trajectory passes through that zone
+at least once.  This is more meaningful than majority-vote assignment for
+intersection arms, where vehicles transit quickly through one arm and then
+slow/stop in another — majority vote would unfairly exclude the arm they
+entered from.
 """
 
 
@@ -26,54 +30,94 @@ def _point_in_polygon(point, polygon):
 
 def assign_lanes(trajectory_store, lane_rois):
     """
-    Assign each track to a lane based on majority position vote.
-
-    Parameters
-    ----------
-    trajectory_store : TrajectoryStore
-    lane_rois        : list of {"name": str, "polygon": [(x,y), ...]}
+    For each track, record every zone it ever touched (presence-based).
 
     Returns
     -------
-    dict: {track_id: lane_name or None}
+    dict: {track_id: set of lane_names the track was ever seen in}
     """
     assignments = {}
 
     for track_id, history in trajectory_store.all_histories().items():
         positions = [(cx, cy) for _, cx, cy, _, _ in history]
-
-        # count how many positions fall in each lane
-        lane_votes = {roi["name"]: 0 for roi in lane_rois}
+        touched = set()
         for pos in positions:
             for roi in lane_rois:
                 if _point_in_polygon(pos, roi["polygon"]):
-                    lane_votes[roi["name"]] += 1
-
-        best_lane = max(lane_votes, key=lane_votes.get)
-        assignments[track_id] = best_lane if lane_votes[best_lane] > 0 else None
+                    touched.add(roi["name"])
+        assignments[track_id] = touched
 
     return assignments
 
 
-def lane_utilization(lane_assignments):
+def lane_utilization(occupancy_history):
     """
-    Compute fraction of tracked vehicles in each lane.
+    Compute average instantaneous occupancy fraction for each zone.
+
+    This is the most intuitive utilization metric: on average, what fraction
+    of the total vehicles visible at any given moment were in each zone?
+
+    If east_arm consistently holds 8-10 cars and north_arm holds 2-3, this
+    metric reflects that directly — unlike presence or majority-vote approaches
+    which are distorted by identity switches and track lifetimes.
 
     Parameters
     ----------
-    lane_assignments : output of assign_lanes()
+    occupancy_history : list of dicts — one per frame, each is the output of
+                        current_zone_occupancy() for that frame.
 
     Returns
     -------
-    dict: {lane_name: fraction (0.0–1.0)}
+    dict: {zone_name: average_fraction (0.0–1.0)}
+           Fractions are relative to total vehicles in frame, so they can sum
+           to > 1.0 when zones overlap.
     """
-    total = len([v for v in lane_assignments.values() if v is not None])
-    if total == 0:
+    if not occupancy_history:
         return {}
 
-    counts = {}
-    for lane in lane_assignments.values():
-        if lane is not None:
-            counts[lane] = counts.get(lane, 0) + 1
+    zone_names = set()
+    for snap in occupancy_history:
+        zone_names.update(snap.keys())
 
-    return {lane: round(count / total, 3) for lane, count in counts.items()}
+    zone_totals   = {z: 0.0 for z in zone_names}
+    frame_totals  = []
+
+    for snap in occupancy_history:
+        total_in_frame = sum(snap.values())
+        frame_totals.append(total_in_frame)
+        for z in zone_names:
+            zone_totals[z] += snap.get(z, 0)
+
+    total_vehicle_frames = sum(frame_totals)
+    if total_vehicle_frames == 0:
+        return {z: 0.0 for z in zone_names}
+
+    return {z: round(zone_totals[z] / total_vehicle_frames, 3)
+            for z in zone_names}
+
+
+def current_zone_occupancy(tracks, lane_rois):
+    """
+    Count how many active tracks are currently inside each zone.
+
+    This is a real-time snapshot metric (per-frame), complementing the
+    cumulative ``lane_utilization`` which covers the full video history.
+
+    Parameters
+    ----------
+    tracks    : list of Track objects (must expose .get_bbox())
+    lane_rois : list of {"name": str, "polygon": [(x,y), ...]}
+
+    Returns
+    -------
+    dict: {zone_name: int}  — number of tracks currently in each zone
+    """
+    occupancy = {roi["name"]: 0 for roi in lane_rois}
+    for track in tracks:
+        x1, y1, x2, y2 = track.get_bbox()
+        cx = (x1 + x2) / 2.0
+        cy = (y1 + y2) / 2.0
+        for roi in lane_rois:
+            if _point_in_polygon((cx, cy), roi["polygon"]):
+                occupancy[roi["name"]] += 1
+    return occupancy

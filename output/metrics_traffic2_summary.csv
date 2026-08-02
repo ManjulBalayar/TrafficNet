@@ -1,0 +1,13 @@
+metric,value
+total_crossings.north,0.0
+total_crossings.south,4.0
+total_crossings.east,1.0
+total_crossings.west,3.0
+flow_rate_veh_min.north,0.0
+flow_rate_veh_min.south,12.74
+flow_rate_veh_min.east,3.18
+flow_rate_veh_min.west,9.55
+lane_utilization.west_arm,0.351
+lane_utilization.north_arm,0.035
+lane_utilization.east_arm,0.614
+avg_fps,11.1

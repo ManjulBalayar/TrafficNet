@@ -94,7 +94,6 @@ def main():
         total_ok   += ok
         total_fail += fail
 
-    print(f"\n{'='*50}")
     print(f"Downloaded : {total_ok} frames")
     print(f"Failed     : {total_fail} frames")
     print(f"Location   : {OUTPUT_DIR}/sequences/")

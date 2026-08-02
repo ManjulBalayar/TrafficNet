@@ -1,5 +1,5 @@
 # Detection 
-CONF_THRESHOLD  = 0.5   # discard detections below this confidence
+CONF_THRESHOLD  = 0.50   # discard detections below this confidence
 NMS_THRESHOLD   = 0.45  # IoU threshold for Non-Maximum Suppression
 VEHICLE_CLASSES = [2, 3, 5, 7]  # COCO: car, motorcycle, bus, truck
 
@@ -28,7 +28,7 @@ SMOOTH_WINDOW   = 10       # frames for sliding-window temporal smoothing
 
 # Counting lines — one per approach arm
 COUNTING_LINES = [
-    {"name": "north", "line": [(390, 220), (710, 220)]},  # horizontal, mid N arm
+    {"name": "north", "line": [(390, 290), (710, 290)]},  # horizontal, lower N arm
     {"name": "south", "line": [(370, 560), (680, 560)]},  # horizontal, bottom of S arm
     {"name": "east",  "line": [(1050, 160), (1050, 470)]}, # vertical, right of E arm
     {"name": "west",  "line": [(70,  220), (70,  520)]},  # vertical, left of W arm
@@ -42,15 +42,14 @@ COUNTING_LINES = [
 #
 #   North zone:  x=[390..710],  y=[0..330]   — vehicles coming from the north
 #   South zone:  x=[300..680],  y=[330..720] — vehicles coming from the south
-#   East zone:   x=[640..1280], y=[140..470] — vehicles coming from the east
-#   West zone:   x=[0..640],    y=[140..470] — vehicles coming from the west
+#   East zone:   x=[640..1280], y=[140..720] — vehicles coming from the east (full height)
+#   West zone:   x=[0..640],    y=[140..720] — vehicles coming from the west (full height)
 #
-# The N/S zones and E/W zones overlap in the intersection box; assign_lanes
-# picks the lane with the MOST trajectory points, so vehicles that transit
-# through both zones are assigned by majority direction.
+# East/West extend to y=720 so the bottom-right and bottom-left approach roads
+# are covered. Overlaps in the intersection box are resolved by majority-vote.
 LANE_ROIS = [
     {"name": "north_arm", "polygon": [(390,   0), (710,   0), (710, 330), (390, 330)]},
     {"name": "south_arm", "polygon": [(300, 330), (680, 330), (680, 720), (300, 720)]},
-    {"name": "east_arm",  "polygon": [(640, 140), (1280, 140), (1280, 470), (640, 470)]},
-    {"name": "west_arm",  "polygon": [(0,   140), (640,  140), (640,  470), (0,  470)]},
+    {"name": "east_arm",  "polygon": [(640, 140), (1280, 140), (1280, 720), (640, 720)]},
+    {"name": "west_arm",  "polygon": [(0,   140), (640,  140), (640,  720), (0,  720)]},
 ]

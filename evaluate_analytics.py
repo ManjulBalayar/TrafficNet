@@ -1,12 +1,10 @@
 """
 Analytics Evaluation Script
-============================
 
 Evaluates the ANALYTICS layer (counting + lane assignment) of the pipeline
 against UA-DETRAC ground-truth annotations.
 
 Metrics computed
-----------------
 1. Vehicle Counting Accuracy
    - A horizontal mid-frame counting line is placed at y = frame_height / 2.
      The SAME line is applied to both ground-truth and predicted trajectories,
@@ -22,7 +20,6 @@ Metrics computed
    - (Real lane ROIs vary by scene; this gives a scene-agnostic estimate.)
 
 Usage
------
     python evaluate_analytics.py                    # all annotated sequences
     python evaluate_analytics.py --seq MVI_20011    # single sequence
 """
@@ -39,7 +36,7 @@ SEQUENCES_DIR   = "data/ua-detrac/sequences"
 ANNOTATIONS_DIR = "data/ua-detrac/annotations"
 
 
-# ── GT parser (same as evaluate.py) ──────────────────────────────────────────
+# GT parser (same as evaluate.py) 
 
 def parse_annotation(xml_path):
     tree = ET.parse(xml_path)
@@ -60,7 +57,7 @@ def parse_annotation(xml_path):
     return frames
 
 
-# ── Build GT trajectory store (dict matching TrajectoryStore._histories) ──────
+# Build GT trajectory store (dict matching TrajectoryStore._histories)
 
 def build_gt_store(gt_frames):
     """
@@ -75,7 +72,7 @@ def build_gt_store(gt_frames):
     return store
 
 
-# ── Counting logic (duplicated from analytics/counting.py for portability) ───
+# Counting logic (duplicated from analytics/counting.py for portability) 
 
 def _side(point, p1, p2):
     dx = p2[0] - p1[0]; dy = p2[1] - p1[1]
@@ -102,7 +99,7 @@ def count_crossings_from_store(histories, line):
     return len(crossed)
 
 
-# ── Lane assignment logic (left / right half of frame) ───────────────────────
+# Lane assignment logic (left / right half of frame) 
 
 def majority_half(positions, frame_width):
     """Return 'left' or 'right' based on where the track spent most time."""
@@ -118,7 +115,7 @@ def build_pred_store(tracker):
     return tracker.trajectory_store.all_histories()
 
 
-# ── IoU helper for GT–pred track matching ────────────────────────────────────
+# IoU helper for GT–pred track matching 
 
 def _iou(a, b):
     x1 = max(a[0], b[0]); y1 = max(a[1], b[1])
@@ -130,7 +127,7 @@ def _iou(a, b):
     return inter / (aa + ab - inter)
 
 
-# ── Per-sequence evaluator ────────────────────────────────────────────────────
+# Per-sequence evaluator 
 
 def evaluate_sequence_analytics(seq_name):
     seq_dir  = os.path.join(SEQUENCES_DIR, seq_name)
@@ -230,7 +227,7 @@ def evaluate_sequence_analytics(seq_name):
     }
 
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# Main 
 
 def main():
     parser = argparse.ArgumentParser()

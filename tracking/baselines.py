@@ -21,7 +21,7 @@ Baseline 3 — Detection-Only Counting (detection_only)
 from config import IOU_MATCH_THRESHOLD, MAX_MISSED_FRAMES, MIN_INIT_HITS
 
 
-# ── Baseline 1: Position-only track (no Kalman) ───────────────────────────────
+# Baseline 1: Position-only track (no Kalman) 
 
 class PositionOnlyTrack:
     """Stores last bbox only — no velocity, no prediction."""
@@ -66,7 +66,7 @@ class PositionOnlyTrack:
         }
 
 
-# ── Baseline 2: Greedy association ───────────────────────────────────────────
+# Baseline 2: Greedy association 
 
 def greedy_associate(tracks, detections):
     """
@@ -105,7 +105,7 @@ def greedy_associate(tracks, detections):
     return matches, unmatched_tracks, unmatched_dets
 
 
-# ── Baseline 1+2 combined tracker ────────────────────────────────────────────
+# Baseline 1+2 combined tracker 
 
 class BaselineTracker:
     """
@@ -164,7 +164,7 @@ class BaselineTracker:
         ]
 
 
-# ── Baseline 3: Detection-only (no tracker) ──────────────────────────────────
+# Baseline 3: Detection-only (no tracker) 
 
 class DetectionOnlyTracker:
     """
@@ -175,7 +175,7 @@ class DetectionOnlyTracker:
 
     def __init__(self):
         from analytics.trajectories import TrajectoryStore
-        self.tracks           = []   # always empty — no persistent state
+        self.tracks           = []   # always empty, no persistent state
         self.trajectory_store = TrajectoryStore()
         self._next_id         = 1
 

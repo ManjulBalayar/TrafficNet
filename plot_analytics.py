@@ -38,7 +38,7 @@ def plot_analytics(csv_path: str, output_path: str = None, show: bool = True):
     fig, axes = plt.subplots(n_panels, 1, figsize=(12, 3 * n_panels), sharex=True)
     fig.suptitle("TrafficNet — Per-Frame Analytics", fontsize=14, fontweight="bold")
 
-    # ── Panel 1: active tracks ───────────────────────────────────────────────
+    # Panel 1: active tracks 
     ax1 = axes[0]
     ax1.fill_between(df["frame_id"], df["active_tracks"], alpha=0.4, color="steelblue")
     ax1.plot(df["frame_id"], df["active_tracks"], color="steelblue", linewidth=1.0)
@@ -46,7 +46,7 @@ def plot_analytics(csv_path: str, output_path: str = None, show: bool = True):
     ax1.set_title("Vehicle Count Over Time")
     ax1.grid(True, alpha=0.3)
 
-    # ── Panel 2: average speed ───────────────────────────────────────────────
+    # Panel 2: average speed 
     ax2 = axes[1]
     ax2.plot(df["frame_id"], df["avg_speed"], color="lightgray", linewidth=0.6,
              label="raw")
@@ -57,7 +57,7 @@ def plot_analytics(csv_path: str, output_path: str = None, show: bool = True):
     ax2.legend(fontsize=8)
     ax2.grid(True, alpha=0.3)
 
-    # ── Panel 3: per-frame FPS (optional) ───────────────────────────────────
+    # Panel 3: per-frame FPS (optional) 
     if has_fps:
         ax_fps = axes[2]
         fps_smooth = df["fps"].rolling(WINDOW, min_periods=1, center=True).mean()
@@ -70,7 +70,7 @@ def plot_analytics(csv_path: str, output_path: str = None, show: bool = True):
         ax_fps.legend(fontsize=8)
         ax_fps.grid(True, alpha=0.3)
 
-    # ── Panel 4: congestion state ────────────────────────────────────────────
+    # Panel 4: congestion state 
     ax3 = axes[3 if has_fps else 2]
     congested = df["congested"].astype(int)
     ax3.step(df["frame_id"], congested, where="post", color="crimson", linewidth=1.2)

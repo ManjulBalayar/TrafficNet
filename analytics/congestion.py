@@ -35,10 +35,14 @@ def _density(tracks, frame_area):
 class CongestionDetector:
     """
     Stateful detector: call update() once per frame and read is_congested.
+
+    v_min and rho_max can be overridden per scene; they default to config.py values.
     """
 
-    def __init__(self, frame_width, frame_height):
+    def __init__(self, frame_width, frame_height, v_min=None, rho_max=None):
         self._frame_area = frame_width * frame_height
+        self._v_min   = v_min   if v_min   is not None else V_MIN
+        self._rho_max = rho_max if rho_max is not None else RHO_MAX
         self._window = deque(maxlen=SMOOTH_WINDOW)  # stores per-frame boolean flags
         self.is_congested = False
         self.last_avg_speed = 0.0
@@ -58,8 +62,8 @@ class CongestionDetector:
         self.last_density   = _density(active_tracks, self._frame_area)
 
         frame_congested = (
-            self.last_avg_speed < V_MIN and
-            self.last_density   > RHO_MAX
+            self.last_avg_speed < self._v_min and
+            self.last_density   > self._rho_max
         )
         self._window.append(frame_congested)
 

@@ -1,22 +1,57 @@
 import argparse
+import importlib
 import time
 
 from detection.detector import Detector
 from tracking.tracker import Tracker
-from analytics.counting import count_crossings, flow_rate
-from analytics.lanes import assign_lanes, lane_utilization
+from analytics.counting import CountingLineMonitor, count_crossings, flow_rate
+from analytics.lanes import lane_utilization, current_zone_occupancy
 from analytics.congestion import CongestionDetector
 from visualization.draw import (
     draw_tracks, draw_trails, draw_counting_lines,
     draw_lane_rois, draw_congestion,
 )
 from utils.io import load_frames, save_video, save_metrics_csv
-from config import COUNTING_LINES, LANE_ROIS, CONF_THRESHOLD
+import config as _base_config
 
 
-def run(source, output_video=None, output_metrics=None, show=False, delay=0):
-    detector   = Detector()
+def _load_scene(scene_name):
+    """
+    Load scene-specific spatial config from scenes/<scene_name>.py.
+    Falls back to config.py values for any missing keys.
+    Returns (counting_lines, lane_rois, v_min, rho_max).
+    """
+    if scene_name:
+        try:
+            scene = importlib.import_module(f"scenes.{scene_name}")
+            print(f"  Loaded scene config: scenes/{scene_name}.py")
+        except ModuleNotFoundError:
+            raise SystemExit(f"Scene not found: scenes/{scene_name}.py")
+    else:
+        scene = None
+
+    def _get(attr):
+        if scene and hasattr(scene, attr):
+            return getattr(scene, attr)
+        return getattr(_base_config, attr)
+
+    return (
+        _get("COUNTING_LINES"),
+        _get("LANE_ROIS"),
+        _get("V_MIN"),
+        _get("RHO_MAX"),
+    )
+
+
+def run(source, scene=None, model="yolov8n.pt", output_video=None,
+        output_metrics=None, show=False, delay=0):
+
+    counting_lines, lane_rois, v_min, rho_max = _load_scene(scene)
+
+    detector   = Detector(model_path=model)
     tracker    = Tracker()
+    line_monitor    = CountingLineMonitor(counting_lines)
+    occupancy_history = []   # one dict per frame, for average-occupancy utilization
 
     per_frame_metrics = []
     annotated_frames  = []
@@ -35,7 +70,9 @@ def run(source, output_video=None, output_metrics=None, show=False, delay=0):
         # Congestion (needs frame dimensions on first call)
         if congestion_detector is None:
             h, w = frame.shape[:2]
-            congestion_detector = CongestionDetector(w, h)
+            congestion_detector = CongestionDetector(w, h,
+                                                     v_min=v_min,
+                                                     rho_max=rho_max)
         congestion_detector.update(tracker.tracks)
 
         # Per-frame metrics
@@ -49,12 +86,15 @@ def run(source, output_video=None, output_metrics=None, show=False, delay=0):
             "fps":           round(1.0 / frame_times[-1], 2) if frame_times else 0.0,
         })
 
-        # Visualization 
-        crossings = count_crossings(tracker.trajectory_store, COUNTING_LINES)
-        util = lane_utilization(assign_lanes(tracker.trajectory_store, LANE_ROIS))
+        # Live crossing detection (stateful, checks bbox leading edge)
+        line_monitor.update(tracker.tracks)
+        crossings = line_monitor.get_crossing_results()
+        occupancy = current_zone_occupancy(tracker.tracks, lane_rois)
+        occupancy_history.append(occupancy)
+        util      = lane_utilization(occupancy_history)
 
-        draw_lane_rois(frame, LANE_ROIS, util)
-        draw_counting_lines(frame, COUNTING_LINES, crossings)
+        draw_lane_rois(frame, lane_rois, util, occupancy)
+        draw_counting_lines(frame, counting_lines, crossings)
         draw_trails(frame, tracker.trajectory_store)
         draw_tracks(frame, track_outputs)
         draw_congestion(frame, status)
@@ -81,11 +121,10 @@ def run(source, output_video=None, output_metrics=None, show=False, delay=0):
         import cv2
         cv2.destroyAllWindows()
 
-    # Summary analytics
-    store     = tracker.trajectory_store
-    crossings = count_crossings(store, COUNTING_LINES)
+    # Summary analytics — use monitor counts (already complete, no replay needed)
+    crossings = line_monitor.get_crossing_results()
     rate      = flow_rate(crossings, num_frames=len(annotated_frames))
-    util      = lane_utilization(assign_lanes(store, LANE_ROIS))
+    util      = lane_utilization(occupancy_history)
 
     # Throughput stats
     if frame_times:
@@ -142,15 +181,22 @@ def run(source, output_video=None, output_metrics=None, show=False, delay=0):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TrafficNet — vision-based traffic analytics")
-    parser.add_argument("source",         help="Image folder or video file path")
+    parser.add_argument("source",           help="Image folder or video file path")
+    parser.add_argument("--scene",          default=None,
+                        help="Scene config name from scenes/ (e.g. traffic_india, traffic2). "
+                             "Defaults to config.py values.")
     parser.add_argument("--output-video",   default=None, help="Path to save annotated video")
     parser.add_argument("--output-metrics", default=None, help="Path to save metrics CSV")
+    parser.add_argument("--model", default="yolov8n.pt",
+                        help="YOLO model weights (e.g. yolov8n.pt, yolov8s.pt, yolov8m.pt)")
     parser.add_argument("--show",  action="store_true", help="Display frames in a window")
     parser.add_argument("--delay", type=int, default=30,
                         help="ms to wait between frames when --show is used (0 = wait for keypress)")
     args = parser.parse_args()
 
     run(args.source,
+        scene=args.scene,
+        model=args.model,
         output_video=args.output_video,
         output_metrics=args.output_metrics,
         show=args.show,

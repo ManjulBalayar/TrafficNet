@@ -217,7 +217,7 @@ def make_tracker(baseline):
         raise ValueError(f"Unknown baseline: {baseline}")
 
 
-def evaluate_sequence(seq_name, baseline="full"):
+def evaluate_sequence(seq_name, baseline="full", model="yolov8n.pt"):
     seq_dir  = os.path.join(SEQUENCES_DIR, seq_name)
     xml_path = os.path.join(ANNOTATIONS_DIR, f"{seq_name}.xml")
 
@@ -230,7 +230,7 @@ def evaluate_sequence(seq_name, baseline="full"):
 
     gt_frames, ignored_boxes, metadata = parse_annotation(xml_path)
 
-    detector = Detector()
+    detector = Detector(model_path=model)
     tracker  = make_tracker(baseline)
     acc      = MOTAAccumulator()
 
@@ -333,6 +333,8 @@ def main():
                         help="Which tracker variant to run")
     parser.add_argument("--compare",  action="store_true",
                         help="Run all 4 baseline conditions and print a comparison table")
+    parser.add_argument("--model", default="yolov8n.pt",
+                        help="YOLO model weights (e.g. yolov8n.pt, yolov8s.pt)")
     args = parser.parse_args()
 
     # Resolve sequences
@@ -357,14 +359,13 @@ def main():
     results_by_baseline = {}
 
     for bl in baselines:
-        print(f"\n{'='*60}")
         print(f"  Condition: {BASELINE_LABELS[bl]}")
         print(f"  Sequences: {sequences}")
         print(f"{'='*60}")
 
         bl_results = []
         for seq in sequences:
-            result = evaluate_sequence(seq, baseline=bl)
+            result = evaluate_sequence(seq, baseline=bl, model=args.model)
             if result:
                 bl_results.append(result)
                 r = result
