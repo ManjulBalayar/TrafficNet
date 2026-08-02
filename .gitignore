@@ -22,3 +22,18 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
+# Downloaded ML model weights
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Generated outputs
+output/
+runs/
+
+# macOS/iCloud placeholder files
+*.icloud
+
+# Accidental duplicate dataset images
+data/ua-detrac/sequences/**/* 2.jpg
